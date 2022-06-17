@@ -1,14 +1,14 @@
 # sentinel
-####一：说明
+#### 一：说明
 
 sentinel修改版。<br>
 
-#####1：完美支持nacos双向同步持久化<br>
+##### 1：完美支持nacos双向同步持久化<br>
 
-#####2：通过shell脚本动态连接你的nacos环境以及其他参数配置，无需改动源码配置
+##### 2：通过shell脚本动态连接你的nacos环境以及其他参数配置，无需改动源码配置
 
 
-####二：下载文件
+#### 二：下载文件
 1：下载shell脚本：sentinel.sh<br>
 
 2：下载 sentinel-dashboard.jar 包<br>
@@ -19,7 +19,7 @@ sentinel修改版。<br>
 jar包下载:
 [sentinel-dashboard.jar](https://github.com/hlcen66/sentinel/releases/download/1.0/sentinel-dashboard.jar)
 
-####三：如何使用
+#### 三：如何使用
 1：打开脚本文件修改一下配置：
 ```powershell
 #!/bin/sh
