@@ -10,5 +10,8 @@ sentinel修改版，完美支持nacos双向同步，并且支持nacos配置参�
 
 参数较多，建议使用脚本启动.
 
-脚本事例:
-[sentinel.sh](sentinel.sh)
+脚本下载:
+[sentinel.sh](https://github.com/hlcen66/sentinel/releases/download/1.0/sentinel.sh)
+
+jar包下载:
+[sentinel-dashboard.jar](https://github.com/hlcen66/sentinel/releases/download/1.0/sentinel-dashboard-chl.jar)
