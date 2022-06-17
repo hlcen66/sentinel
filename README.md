@@ -1,8 +1,20 @@
 # sentinel
 sentinel修改版，完美支持nacos双向同步，并且支持nacos配置参数传入。
 
-启动时请务必指定nacos的服务地址，名称空间，groupId这些参数，不然无法启动。
+启动时必须指定nacos的服务地址，名称空间，group3个参数，不然无法启动。
 
-参数指定事例：
+参数指定事例：<br>
+-Dcustomer.nacos.server=yourNacosServerAddr <br>
+-Dcustomer.nacos.namespace=yourNamespaceId<br>
+-Dcustomer.nacos.group=yourGroup
 
--Dcustomer.nacos.server=yournacos:8849 <br>-Dcustomer.nacos.namespace=9396c1aa-4b4a-4f37-9a26-d26c788ed618<br> -Dcustomer.nacos.group=your-group
+参数较多，建议使用脚本启动.
+
+脚本下载：
+[sentinel.sh](sentinel.sh)
+
+脚本用法：
+./sentinel.sh start | stop | restart
+
+jar包下载：
+[sentinel-dashboard.jar](sentinel-dashboard-chl6.jar)
