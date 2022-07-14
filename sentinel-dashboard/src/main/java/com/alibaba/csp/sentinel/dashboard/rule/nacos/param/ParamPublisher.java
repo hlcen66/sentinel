@@ -28,9 +28,6 @@ public class ParamPublisher implements DynamicRulePublisher<List<ParamFlowRuleEn
     @Autowired
     private ConfigService configService;
 
-    @Autowired
-    private Converter<List<ParamFlowRuleEntity>,String> converter;
-
     @Override
     public void publish(String app, List<ParamFlowRuleEntity> rules) throws Exception {
         AssertUtil.notEmpty(app, "app name is not allow empty");

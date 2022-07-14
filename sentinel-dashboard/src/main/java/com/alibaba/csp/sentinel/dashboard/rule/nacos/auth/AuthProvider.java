@@ -27,9 +27,6 @@ public class AuthProvider implements DynamicRuleProvider<List<AuthorityRuleEntit
     @Autowired
     private ConfigService configService;
 
-    @Autowired
-    private Converter<String,List<AuthorityRuleEntity>> converter;
-
     @Override
     public List<AuthorityRuleEntity> getRules(String appName) throws Exception {
         String rules = configService.getConfig(appName + NacosConfigUtil.AUTH_DATA_ID_POSTFIX, DashboardConfig.getNacosGroup(), 5000);

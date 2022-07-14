@@ -68,20 +68,6 @@ public class NacosConfig {
         return s -> JSON.parseArray(s, DegradeRuleEntity.class);
     }
 
-    /**
-     * 热点规则
-     * @return
-     * @throws Exception
-     */
-    @Bean
-    public Converter<List<ParamFlowRuleEntity>, String> paramRuleEntityEncoder() {
-        return JSON::toJSONString;
-    }
-
-    @Bean
-    public Converter<String, List<ParamFlowRuleEntity>> paramRuleEntityDecoder() {
-        return s -> JSON.parseArray(s, ParamFlowRuleEntity.class);
-    }
 
     /**
      * 系统规则
@@ -98,20 +84,6 @@ public class NacosConfig {
         return s -> JSON.parseArray(s, SystemRuleEntity.class);
     }
 
-    /**
-     * 授权规则
-     * @return
-     * @throws Exception
-     */
-    @Bean
-    public Converter<List<AuthorityRuleEntity>, String> authRuleEntityEncoder() {
-        return null;
-    }
-
-    @Bean
-    public Converter<String, List<AuthorityRuleEntity>> authRuleEntityDecoder() {
-        return s -> JSON.parseArray(s, AuthorityRuleEntity.class);
-    }
 
     /**
      * 网关限流规则

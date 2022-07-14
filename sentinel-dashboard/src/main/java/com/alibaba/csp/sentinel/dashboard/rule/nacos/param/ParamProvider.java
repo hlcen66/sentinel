@@ -29,8 +29,6 @@ public class ParamProvider implements DynamicRuleProvider<List<ParamFlowRuleEnti
     @Autowired
     private ConfigService configService;
 
-    @Autowired
-    private Converter<String,List<ParamFlowRuleEntity>> converter;
 
     @Override
     public List<ParamFlowRuleEntity> getRules(String appName) throws Exception {

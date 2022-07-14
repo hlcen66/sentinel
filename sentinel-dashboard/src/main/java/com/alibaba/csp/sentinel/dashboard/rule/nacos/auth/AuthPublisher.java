@@ -27,8 +27,6 @@ public class AuthPublisher implements DynamicRulePublisher<List<AuthorityRuleEnt
     @Autowired
     private ConfigService configService;
 
-    @Autowired
-    private Converter<List<AuthorityRuleEntity>,String> converter;
 
     @Override
     public void publish(String app, List<AuthorityRuleEntity> rules) throws Exception {
