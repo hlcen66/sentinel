@@ -1,11 +1,13 @@
 package com.alibaba.csp.sentinel.dashboard.rule.nacos.auth;
 
 import com.alibaba.csp.sentinel.dashboard.config.DashboardConfig;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.AbstractRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.AuthorityRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
 import com.alibaba.csp.sentinel.dashboard.rule.nacos.NacosConfigUtil;
 import com.alibaba.csp.sentinel.datasource.Converter;
 import com.alibaba.csp.sentinel.util.AssertUtil;
+import com.alibaba.fastjson.JSON;
 import com.alibaba.nacos.api.config.ConfigService;
 import com.alibaba.nacos.api.config.ConfigType;
 import com.alibaba.nacos.common.utils.CollectionUtils;
@@ -15,6 +17,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Component("authPublisher")
 public class AuthPublisher implements DynamicRulePublisher<List<AuthorityRuleEntity>> {
@@ -33,8 +36,9 @@ public class AuthPublisher implements DynamicRulePublisher<List<AuthorityRuleEnt
         if(null == rules){
             return;
         }
-        String rulesStr = converter.convert(rules);
-        log.info("push rules to nacos,authRules:{}",rulesStr);
+        //String rulesStr = converter.convert(rules);
+        String rulesStr = JSON.toJSONString(rules.stream().map(AbstractRuleEntity::toRule).collect(Collectors.toList()));
+        log.info("push auth rules to nacos,rules:{}",rulesStr);
         configService.publishConfig(app+NacosConfigUtil.AUTH_DATA_ID_POSTFIX, DashboardConfig.getNacosGroup(), rulesStr, ConfigType.JSON.getType());
     }
 }

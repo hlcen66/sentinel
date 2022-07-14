@@ -35,7 +35,7 @@ public class GatewayFlowPublisher implements DynamicRulePublisher<List<GatewayFl
             return;
         }
         String rulesStr = converter.convert(rules);
-        log.info("push rules to nacos,authRules:{}",rulesStr);
+        log.info("push gateway flow rules to nacos,Rules:{}",rulesStr);
         configService.publishConfig(app+NacosConfigUtil.GATEWAY_FLOW_DATA_ID_POSTFIX, DashboardConfig.getNacosGroup(), rulesStr, ConfigType.JSON.getType());
     }
 }

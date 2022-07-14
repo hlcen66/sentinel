@@ -35,7 +35,7 @@ public class DegradePublisher implements DynamicRulePublisher<List<DegradeRuleEn
             return;
         }
         String rulesStr = converter.convert(rules);
-        log.info("push rules to nacos,authRules:{}",rulesStr);
+        log.info("push degrade rules to nacos,rules:{}",rulesStr);
         configService.publishConfig(app+NacosConfigUtil.DEGRADE_DATA_ID_POSTFIX, DashboardConfig.getNacosGroup(), rulesStr, ConfigType.JSON.getType());
     }
 }

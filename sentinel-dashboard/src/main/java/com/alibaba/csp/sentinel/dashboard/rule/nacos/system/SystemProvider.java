@@ -29,7 +29,7 @@ public class SystemProvider implements DynamicRuleProvider<List<SystemRuleEntity
     @Override
     public List<SystemRuleEntity> getRules(String appName) throws Exception {
         String rules = configService.getConfig(appName + NacosConfigUtil.SYS_DATA_ID_POSTFIX, DashboardConfig.getNacosGroup(), 5000);
-        log.info("get rules from nacos :{}",rules);
+        log.info("get system rules from nacos :{}",rules);
         if(StringUtils.isEmpty(rules)){
             return new ArrayList<>();
         }

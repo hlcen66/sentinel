@@ -34,7 +34,7 @@ public class SystemPublisher implements DynamicRulePublisher<List<SystemRuleEnti
             return;
         }
         String rulesStr = converter.convert(rules);
-        log.info("push rules to nacos,authRules:{}",rulesStr);
+        log.info("push system rules to nacos,rules:{}",rulesStr);
         configService.publishConfig(app+NacosConfigUtil.SYS_DATA_ID_POSTFIX, DashboardConfig.getNacosGroup(), rulesStr, ConfigType.JSON.getType());
     }
 }

@@ -35,7 +35,7 @@ public class GatewayApiPublisher implements DynamicRulePublisher<List<ApiDefinit
             return;
         }
         String rulesStr = converter.convert(rules);
-        log.info("push rules to nacos,authRules:{}",rulesStr);
+        log.info("push gateway api rules to nacos,Rules:{}",rulesStr);
         configService.publishConfig(app+NacosConfigUtil.GATEWAY_API_DATA_ID_POSTFIX, DashboardConfig.getNacosGroup(), rulesStr, ConfigType.JSON.getType());
     }
 }

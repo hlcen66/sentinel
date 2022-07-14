@@ -32,7 +32,7 @@ public class FlowProvider implements DynamicRuleProvider<List<FlowRuleEntity>> {
         String dataId = appName + NacosConfigUtil.FLOW_DATA_ID_POSTFIX;
         String groupId = DashboardConfig.getNacosGroup();
         String rules = configService.getConfig(dataId,groupId,5000);
-        log.info("get rules from nacos dataId:{},groupId:{},rules:{}",dataId,groupId,rules);
+        log.info("get flow rules from nacos dataId:{},groupId:{},rules:{}",dataId,groupId,rules);
         if(StringUtils.isEmpty(rules)){
             return new ArrayList<>();
         }
