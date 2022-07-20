@@ -79,13 +79,6 @@ public class GatewayFlowRuleController {
         if (StringUtil.isEmpty(app)) {
             return Result.ofFail(-1, "app can't be null or empty");
         }
-        if (StringUtil.isEmpty(ip)) {
-            return Result.ofFail(-1, "ip can't be null or empty");
-        }
-        if (port == null) {
-            return Result.ofFail(-1, "port can't be null");
-        }
-
         try {
             List<GatewayFlowRuleEntity> memoryRules = repository.findAllByApp(app);
             if(CollectionUtils.isEmpty(memoryRules)){
@@ -107,7 +100,6 @@ public class GatewayFlowRuleController {
         if (StringUtil.isBlank(app)) {
             return Result.ofFail(-1, "app can't be null or empty");
         }
-
         GatewayFlowRuleEntity entity = new GatewayFlowRuleEntity();
         entity.setApp(app.trim());
         // API类型, Route ID或API分组

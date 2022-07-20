@@ -75,13 +75,6 @@ public class GatewayApiController {
         if (StringUtil.isEmpty(app)) {
             return Result.ofFail(-1, "app can't be null or empty");
         }
-        if (StringUtil.isEmpty(ip)) {
-            return Result.ofFail(-1, "ip can't be null or empty");
-        }
-        if (port == null) {
-            return Result.ofFail(-1, "port can't be null");
-        }
-
         try {
             List<ApiDefinitionEntity> memoryRules = repository.findAllByApp(app);
             if(CollectionUtils.isEmpty(memoryRules)){
