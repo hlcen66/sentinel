@@ -18,6 +18,8 @@ package com.alibaba.csp.sentinel.dashboard.controller.v2;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ import java.util.stream.Collectors;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.gateway.ApiDefinitionEntity;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.SystemRuleEntity;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
@@ -70,6 +73,8 @@ public class FlowControllerV2 {
     @Autowired
     @Qualifier("flowPublisher")
     private DynamicRulePublisher<List<FlowRuleEntity>> rulePublisher;
+
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
 
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)
@@ -239,8 +244,22 @@ public class FlowControllerV2 {
         return Result.ofSuccess(id);
     }
 
-    private void publishRules(/*@NonNull*/ String app) throws Exception {
-        List<FlowRuleEntity> rules = repository.findAllByApp(app);
-        rulePublisher.publish(app, rules);
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<FlowRuleEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 }

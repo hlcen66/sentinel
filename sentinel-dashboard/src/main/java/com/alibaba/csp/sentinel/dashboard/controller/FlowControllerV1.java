@@ -18,9 +18,7 @@ package com.alibaba.csp.sentinel.dashboard.controller;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
@@ -74,6 +72,8 @@ public class FlowControllerV1 {
     @Autowired
     @Qualifier("flowPublisher")
     private DynamicRulePublisher<List<FlowRuleEntity>> rulePublisher;
+
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
 
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)
@@ -160,10 +160,7 @@ public class FlowControllerV1 {
             Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
-            if(!publishRules(entity.getApp())){
-                logger.error("flow v1 add fail");
-                return Result.ofFail(-1,"flow v1 add fail");
-            }
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -241,11 +238,7 @@ public class FlowControllerV1 {
             if (entity == null) {
                 return Result.ofFail(-1, "save entity fail: null");
             }
-
-            if(!publishRules(entity.getApp())){
-                logger.error("flow v1 update fail");
-                return Result.ofFail(-1,"flow v1 update fail");
-            }
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -273,10 +266,7 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, e.getMessage());
         }
         try {
-            if(!publishRules(oldEntity.getApp())){
-                logger.error("flow v1 delete fail");
-                return Result.ofFail(-1,"flow v1 delete fail");
-            }
+            publishRules(oldEntity.getApp());
             return Result.ofSuccess(id);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -286,15 +276,22 @@ public class FlowControllerV1 {
         }
     }
 
-    private boolean publishRules(String app) {
-        List<FlowRuleEntity> rules = repository.findAllByApp(app);
-        //return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
-        try {
-            rulePublisher.publish(app,rules);
-            return true;
-        } catch (Exception e) {
-            logger.error("flow v1 push error", e);
-            return false;
-        }
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<FlowRuleEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 }

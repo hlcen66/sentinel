@@ -41,6 +41,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.alibaba.csp.sentinel.slots.block.RuleConstant.*;
 import static com.alibaba.csp.sentinel.adapter.gateway.common.SentinelGatewayConstants.*;
@@ -71,6 +73,8 @@ public class GatewayFlowRuleController {
     @Autowired
     @Qualifier("gatewayFlowPublisher")
     private DynamicRulePublisher<List<GatewayFlowRuleEntity>> rulePublisher;
+
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
 
     @GetMapping("/list.json")
     @AuthAction(AuthService.PrivilegeType.READ_RULE)
@@ -238,11 +242,7 @@ public class GatewayFlowRuleController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishRules(app)) {
-            logger.error("gateway flow rules add fail");
-            return Result.ofFail(-1,"gateway flow rules add fail");
-        }
-
+        publishRules(app);
         return Result.ofSuccess(entity);
     }
 
@@ -385,10 +385,7 @@ public class GatewayFlowRuleController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishRules(app)) {
-            logger.error("gateway flow rules update fail");
-            return Result.ofFail(-1,"gateway flow rules update fail");
-        }
+        publishRules(app);
 
         return Result.ofSuccess(entity);
     }
@@ -414,22 +411,27 @@ public class GatewayFlowRuleController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishRules(oldEntity.getApp())) {
-            logger.error("gateway flow rules delete fail");
-            return Result.ofFail(-1,"gateway flow rules delete fail");
-        }
+        publishRules(oldEntity.getApp());
 
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app) {
-        List<GatewayFlowRuleEntity> rules = repository.findAllByApp(app);
-        try {
-            rulePublisher.publish(app,rules);
-            return true;
-        } catch (Exception e) {
-            logger.error("gateway flow push error", e);
-            return false;
-        }
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<GatewayFlowRuleEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 }

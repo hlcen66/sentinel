@@ -17,6 +17,8 @@ package com.alibaba.csp.sentinel.dashboard.controller;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
@@ -64,6 +66,8 @@ public class SystemController {
     @Qualifier("systemPublisher")
     private DynamicRulePublisher<List<SystemRuleEntity>> rulePublisher;
 
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
+
     private <R> Result<R> checkBasicParams(String app, String ip, Integer port) {
         if (StringUtil.isEmpty(app)) {
             return Result.ofFail(-1, "app can't be null or empty");
@@ -110,11 +114,6 @@ public class SystemController {
     public Result<SystemRuleEntity> apiAdd(String app, String ip, Integer port,
                                            Double highestSystemLoad, Double highestCpuUsage, Long avgRt,
                                            Long maxThread, Double qps) {
-
-        Result<SystemRuleEntity> checkResult = checkBasicParams(app, ip, port);
-        if (checkResult != null) {
-            return checkResult;
-        }
 
         int notNullCount = countNotNullAndNotNegative(highestSystemLoad, avgRt, maxThread, qps, highestCpuUsage);
         if (notNullCount != 1) {
@@ -176,10 +175,7 @@ public class SystemController {
             logger.error("Add SystemRule error", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(app)) {
-            logger.error("system rules add fail");
-            Result.ofFail(-1,"保存规则失败");
-        }
+        publishRules(app);
         return Result.ofSuccess(entity);
     }
 
@@ -194,7 +190,7 @@ public class SystemController {
         if (entity == null) {
             return Result.ofFail(-1, "id " + id + " dose not exist");
         }
-
+        app = entity.getApp();
         if (StringUtil.isNotBlank(app)) {
             entity.setApp(app.trim());
         }
@@ -239,10 +235,7 @@ public class SystemController {
             logger.error("save error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(app)) {
-            logger.error("system rules upadte fail");
-            Result.ofFail(-1,"更新规则失败");
-        }
+        publishRules(app);
         return Result.ofSuccess(entity);
     }
 
@@ -262,22 +255,26 @@ public class SystemController {
             logger.error("delete error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(oldEntity.getApp())) {
-            logger.error("system rules delete fail");
-            Result.ofFail(-1,"更新规则失败");
-        }
+        publishRules(oldEntity.getApp());
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app) {
-        List<SystemRuleEntity> rules = repository.findAllByApp(app);
-        //return sentinelApiClient.setSystemRuleOfMachine(app, ip, port, rules);
-        try {
-            rulePublisher.publish(app,rules);
-            return true;
-        } catch (Exception e) {
-            logger.error("system rules save error",e);
-            return false;
-        }
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<SystemRuleEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 }

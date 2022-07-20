@@ -20,6 +20,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
@@ -81,6 +83,8 @@ public class ParamFlowRuleController {
     @Qualifier("paramPublisher")
     private DynamicRulePublisher<List<ParamFlowRuleEntity>> rulePublisher;
 
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
+
     private boolean checkIfSupported(String app, String ip, int port) {
         try {
             return Optional.ofNullable(appManagement.getDetailApp(app))
@@ -133,9 +137,6 @@ public class ParamFlowRuleController {
         if (checkResult != null) {
             return checkResult;
         }
-        if (!checkIfSupported(entity.getApp(), entity.getIp(), entity.getPort())) {
-            return unsupportedVersion();
-        }
         entity.getRule().setResource(entity.getResource().trim());
         Date date = new Date();
         entity.setGmtCreate(date);
@@ -153,10 +154,7 @@ public class ParamFlowRuleController {
             Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
-            if(!publishRules(entity.getApp(), entity.getIp(), entity.getPort())){
-                logger.error("para rules add fail");
-                return Result.ofFail(-1,"param rules add fail");
-            }
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Exception ex) {
             logger.error("Error when adding new parameter flow rules", ex.getCause());
@@ -218,19 +216,13 @@ public class ParamFlowRuleController {
         if (checkResult != null) {
             return checkResult;
         }
-        if (!checkIfSupported(entity.getApp(), entity.getIp(), entity.getPort())) {
-            return unsupportedVersion();
-        }
         entity.setId(id);
         Date date = new Date();
         entity.setGmtCreate(oldEntity.getGmtCreate());
         entity.setGmtModified(date);
         try {
             entity = repository.save(entity);
-            if(!publishRules(entity.getApp(), entity.getIp(), entity.getPort())){
-                logger.error("para rules update fail");
-                return Result.ofFail(-1,"param rules update fail");
-            }
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Exception ex) {
             logger.error("Error when updating parameter flow rules, id=" + id, ex.getCause());
@@ -258,10 +250,7 @@ public class ParamFlowRuleController {
 
         try {
             repository.delete(id);
-            if(!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())){
-                logger.error("para rules delete fail");
-                return Result.ofFail(-1,"param rules delete fail");
-            }
+            publishRules(oldEntity.getApp());
             return Result.ofSuccess(id);
         } catch (Exception ex) {
             logger.error("Error when deleting parameter flow rules", ex.getCause());
@@ -281,15 +270,23 @@ public class ParamFlowRuleController {
         return sentinelApiClient.setParamFlowRuleOfMachine(app, ip, port, rules);
     }*/
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<ParamFlowRuleEntity> rules = repository.findAllByApp(app);
-        try {
-            rulePublisher.publish(app, rules);
-            return true;
-        } catch (Exception e) {
-            logger.error("param rules push error", e);
-            return false;
-        }
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<ParamFlowRuleEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 
     private <R> Result<R> unsupportedVersion() {

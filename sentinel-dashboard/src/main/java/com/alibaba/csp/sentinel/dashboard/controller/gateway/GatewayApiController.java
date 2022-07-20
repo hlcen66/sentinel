@@ -20,7 +20,9 @@ import com.alibaba.csp.sentinel.dashboard.auth.AuthService;
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.gateway.ApiDefinitionEntity;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.gateway.ApiPredicateItemEntity;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.gateway.GatewayFlowRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.DegradeRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.SystemRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.domain.Result;
 import com.alibaba.csp.sentinel.dashboard.domain.vo.gateway.api.AddApiReqVo;
@@ -39,6 +41,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import static com.alibaba.csp.sentinel.adapter.gateway.common.SentinelGatewayConstants.*;
 
@@ -67,6 +71,8 @@ public class GatewayApiController {
     @Autowired
     @Qualifier("gatewayApiPublisher")
     private DynamicRulePublisher<List<ApiDefinitionEntity>> rulePublisher;
+
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
 
     @GetMapping("/list.json")
     @AuthAction(AuthService.PrivilegeType.READ_RULE)
@@ -151,12 +157,7 @@ public class GatewayApiController {
             logger.error("add gateway api error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-
-        if (!publishApis(app)) {
-            logger.error("gateway api rules add fail");
-            return Result.ofFail(-1,"gateway api rules add fail");
-        }
-
+        publishRules(app);
         return Result.ofSuccess(entity);
     }
 
@@ -216,10 +217,7 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(app)) {
-            logger.error("gateway api rules update fail");
-            return Result.ofFail(-1,"gateway api rules update fail");
-        }
+        publishRules(app);
 
         return Result.ofSuccess(entity);
     }
@@ -244,23 +242,27 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(oldEntity.getApp())) {
-            logger.error("gateway api rules delete fail");
-            return Result.ofFail(-1,"gateway api rules delete fail");
-        }
+        publishRules(oldEntity.getApp());
 
         return Result.ofSuccess(id);
     }
 
-    private boolean publishApis(String app) {
-        List<ApiDefinitionEntity> apis = repository.findAllByApp(app);
-        //return sentinelApiClient.modifyApis(app, ip, port, apis);
-        try {
-            rulePublisher.publish(app,apis);
-            return true;
-        } catch (Exception e) {
-            logger.error("gateway api rules push error", e);
-            return false;
-        }
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<ApiDefinitionEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 }

@@ -17,6 +17,8 @@ package com.alibaba.csp.sentinel.dashboard.controller;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
@@ -75,6 +77,8 @@ public class DegradeController {
     @Qualifier("degradePublisher")
     private DynamicRulePublisher<List<DegradeRuleEntity>> rulePublisher;
 
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
+
     @GetMapping("/rules.json")
     @AuthAction(PrivilegeType.READ_RULE)
     public Result<List<DegradeRuleEntity>> apiQueryMachineRules(String app, String ip, Integer port) {
@@ -121,10 +125,7 @@ public class DegradeController {
             logger.error("Failed to add new degrade rule, app={}, ip={}", entity.getApp(), entity.getIp(), t);
             return Result.ofThrowable(-1, t);
         }
-        if (!publishRules(entity.getApp())) {
-            logger.error("degrade rules add fail");
-            return Result.ofFail(-1,"degrade save fail");
-        }
+        publishRules(entity.getApp());
         return Result.ofSuccess(entity);
     }
 
@@ -156,10 +157,7 @@ public class DegradeController {
             logger.error("Failed to save degrade rule, id={}, rule={}", id, entity, t);
             return Result.ofThrowable(-1, t);
         }
-        if (!publishRules(entity.getApp())) {
-            logger.error("degrade rules update fail");
-            return Result.ofFail(-1,"degrade update fail");
-        }
+        publishRules(entity.getApp());
         return Result.ofSuccess(entity);
     }
 
@@ -181,22 +179,27 @@ public class DegradeController {
             logger.error("Failed to delete degrade rule, id={}", id, throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(oldEntity.getApp())) {
-            logger.error("degrade rules delete fail");
-            return Result.ofFail(-1,"degrade delete fail");
-        }
+        publishRules(oldEntity.getApp());
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app) {
-        List<DegradeRuleEntity> rules = repository.findAllByApp(app);
-        try {
-            rulePublisher.publish(app,rules);
-            return true;
-        } catch (Exception e) {
-            logger.error("degrade push fail", e);
-            return false;
-        }
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<DegradeRuleEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 
     private <R> Result<R> checkEntityInternal(DegradeRuleEntity entity) {

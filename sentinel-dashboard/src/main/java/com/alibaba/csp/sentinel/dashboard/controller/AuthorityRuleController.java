@@ -17,6 +17,8 @@ package com.alibaba.csp.sentinel.dashboard.controller;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
@@ -71,6 +73,8 @@ public class AuthorityRuleController {
     @Autowired
     @Qualifier("authPublisher")
     private DynamicRulePublisher<List<AuthorityRuleEntity>> rulePublisher;
+
+    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
 
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)
@@ -149,10 +153,7 @@ public class AuthorityRuleController {
             logger.error("Failed to add authority rule", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp())) {
-            logger.error("auth rules add fail");
-            Result.ofFail(-1,"auth rules add fail");
-        }
+        publishRules(entity.getApp());
         return Result.ofSuccess(entity);
     }
 
@@ -180,10 +181,7 @@ public class AuthorityRuleController {
             logger.error("Failed to save authority rule", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp())) {
-            logger.error("auth rules update fail");
-            Result.ofFail(-1,"auth rules update fail");
-        }
+        publishRules(entity.getApp());
         return Result.ofSuccess(entity);
     }
 
@@ -202,21 +200,26 @@ public class AuthorityRuleController {
         } catch (Exception e) {
             return Result.ofFail(-1, e.getMessage());
         }
-        if (!publishRules(oldEntity.getApp())) {
-            logger.error("auth rules delete fail");
-            Result.ofFail(-1,"auth rules delete fail");
-        }
+        publishRules(oldEntity.getApp());
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app) {
-        List<AuthorityRuleEntity> rules = repository.findAllByApp(app);
-        try {
-            rulePublisher.publish(app,rules);
-            return true;
-        } catch (Exception e) {
-            logger.error("auth rules push error", e);
-            return false;
-        }
+    private void publishRules(String app) {
+        executorService.submit(()->{
+            boolean flag = true;
+            int time = 3;
+            while (flag){
+                List<AuthorityRuleEntity> rules = repository.findAllByApp(app);
+                try {
+                    rulePublisher.publish(app,rules);
+                    flag = false;
+                } catch (Exception e) {
+                    time -=1;
+                    if(0 == time){
+                        flag = false;
+                    }
+                }
+            }
+        });
     }
 }
