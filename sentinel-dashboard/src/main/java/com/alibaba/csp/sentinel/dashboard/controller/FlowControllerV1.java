@@ -172,7 +172,10 @@ public class FlowControllerV1 {
             Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
-            publishRules(entity.getApp());
+            if(!publishRules(entity.getApp())){
+                logger.error("flow v1 add fail");
+                return Result.ofFail(-1,"flow v1 add fail");
+            }
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -251,7 +254,10 @@ public class FlowControllerV1 {
                 return Result.ofFail(-1, "save entity fail: null");
             }
 
-            publishRules(entity.getApp());
+            if(!publishRules(entity.getApp())){
+                logger.error("flow v1 update fail");
+                return Result.ofFail(-1,"flow v1 update fail");
+            }
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -279,7 +285,10 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, e.getMessage());
         }
         try {
-            publishRules(oldEntity.getApp());
+            if(!publishRules(oldEntity.getApp())){
+                logger.error("flow v1 delete fail");
+                return Result.ofFail(-1,"flow v1 delete fail");
+            }
             return Result.ofSuccess(id);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -289,13 +298,15 @@ public class FlowControllerV1 {
         }
     }
 
-    private void publishRules(String app) {
+    private boolean publishRules(String app) {
         List<FlowRuleEntity> rules = repository.findAllByApp(app);
         //return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
         try {
             rulePublisher.publish(app,rules);
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("flow v1 push error", e);
+            return false;
         }
     }
 }
