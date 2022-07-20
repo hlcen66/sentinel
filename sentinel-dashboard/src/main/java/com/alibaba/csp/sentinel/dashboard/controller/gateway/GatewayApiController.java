@@ -105,18 +105,6 @@ public class GatewayApiController {
         ApiDefinitionEntity entity = new ApiDefinitionEntity();
         entity.setApp(app.trim());
 
-        String ip = reqVo.getIp();
-        if (StringUtil.isBlank(ip)) {
-            return Result.ofFail(-1, "ip can't be null or empty");
-        }
-        entity.setIp(ip.trim());
-
-        Integer port = reqVo.getPort();
-        if (port == null) {
-            return Result.ofFail(-1, "port can't be null");
-        }
-        entity.setPort(port);
-
         // API名称
         String apiName = reqVo.getApiName();
         if (StringUtil.isBlank(apiName)) {
@@ -153,7 +141,7 @@ public class GatewayApiController {
         entity.setPredicateItems(new LinkedHashSet<>(predicateItemEntities));
 
         // 检查API名称不能重复
-        List<ApiDefinitionEntity> allApis = repository.findAllByMachine(MachineInfo.of(app.trim(), ip.trim(), port));
+        List<ApiDefinitionEntity> allApis = repository.findAllByApp(reqVo.getApp());
         if (allApis.stream().map(o -> o.getApiName()).anyMatch(o -> o.equals(apiName.trim()))) {
             return Result.ofFail(-1, "apiName exists: " + apiName);
         }
@@ -169,7 +157,7 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(app, ip, port)) {
+        if (!publishApis(app)) {
             logger.warn("publish gateway apis fail after add");
         }
 
@@ -232,7 +220,7 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(app, entity.getIp(), entity.getPort())) {
+        if (!publishApis(app)) {
             logger.warn("publish gateway apis fail after update");
         }
 
@@ -259,15 +247,15 @@ public class GatewayApiController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishApis(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+        if (!publishApis(oldEntity.getApp())) {
             logger.warn("publish gateway apis fail after delete");
         }
 
         return Result.ofSuccess(id);
     }
 
-    private boolean publishApis(String app, String ip, Integer port) {
-        List<ApiDefinitionEntity> apis = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+    private boolean publishApis(String app) {
+        List<ApiDefinitionEntity> apis = repository.findAllByApp(app);
         //return sentinelApiClient.modifyApis(app, ip, port, apis);
         try {
             rulePublisher.publish(app,apis);

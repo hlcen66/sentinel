@@ -112,10 +112,6 @@ public class ParamFlowRuleController {
             return unsupportedVersion();
         }
         try {
-            /*return sentinelApiClient.fetchParamFlowRulesOfMachine(app, ip, port)
-                .thenApply(repository::saveAll)
-                .thenApply(Result::ofSuccess)
-                .get();*/
             List<ParamFlowRuleEntity> rules = ruleProvider.getRules(app);
             repository.saveAll(rules);
             return Result.ofSuccess(rules);
@@ -160,10 +156,9 @@ public class ParamFlowRuleController {
                 }
             }
             List<Long> ids = memoryRules.stream().map(ParamFlowRuleEntity::getId).collect(Collectors.toList());
-            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
-            //publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get();
             publishRules(entity.getApp(), entity.getIp(), entity.getPort());
             return Result.ofSuccess(entity);
         } catch (Exception ex) {
@@ -286,12 +281,12 @@ public class ParamFlowRuleController {
     }
 
     /*private CompletableFuture<Void> publishRules(String app, String ip, Integer port) {
-        List<ParamFlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+        List<ParamFlowRuleEntity> rules = repository.findAllByApp(app);
         return sentinelApiClient.setParamFlowRuleOfMachine(app, ip, port, rules);
     }*/
 
     private void publishRules(String app, String ip, Integer port) {
-        List<ParamFlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+        List<ParamFlowRuleEntity> rules = repository.findAllByApp(app);
         try {
             rulePublisher.publish(app, rules);
         } catch (Exception e) {

@@ -169,10 +169,10 @@ public class FlowControllerV1 {
                 }
             }
             List<Long> ids = memoryRules.stream().map(FlowRuleEntity::getId).collect(Collectors.toList());
-            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort());
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -251,7 +251,7 @@ public class FlowControllerV1 {
                 return Result.ofFail(-1, "save entity fail: null");
             }
 
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort());
+            publishRules(entity.getApp());
             return Result.ofSuccess(entity);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -279,7 +279,7 @@ public class FlowControllerV1 {
             return Result.ofFail(-1, e.getMessage());
         }
         try {
-            publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort());
+            publishRules(oldEntity.getApp());
             return Result.ofSuccess(id);
         } catch (Throwable t) {
             Throwable e = t instanceof ExecutionException ? t.getCause() : t;
@@ -289,8 +289,8 @@ public class FlowControllerV1 {
         }
     }
 
-    private void publishRules(String app, String ip, Integer port) {
-        List<FlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+    private void publishRules(String app) {
+        List<FlowRuleEntity> rules = repository.findAllByApp(app);
         //return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
         try {
             rulePublisher.publish(app,rules);

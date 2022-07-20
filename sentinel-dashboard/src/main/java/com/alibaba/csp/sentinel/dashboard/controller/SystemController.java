@@ -166,7 +166,7 @@ public class SystemController {
             logger.error("Add SystemRule error", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(app, ip, port)) {
+        if (!publishRules(app)) {
             logger.warn("Publish system rules fail after rule add");
         }
         return Result.ofSuccess(entity);
@@ -228,7 +228,7 @@ public class SystemController {
             logger.error("save error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+        if (!publishRules(entity.getApp())) {
             logger.info("publish system rules fail after rule update");
         }
         return Result.ofSuccess(entity);
@@ -250,14 +250,14 @@ public class SystemController {
             logger.error("delete error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+        if (!publishRules(oldEntity.getApp())) {
             logger.info("publish system rules fail after rule delete");
         }
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<SystemRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+    private boolean publishRules(String app) {
+        List<SystemRuleEntity> rules = repository.findAllByApp(app);
         //return sentinelApiClient.setSystemRuleOfMachine(app, ip, port, rules);
         try {
             rulePublisher.publish(app,rules);

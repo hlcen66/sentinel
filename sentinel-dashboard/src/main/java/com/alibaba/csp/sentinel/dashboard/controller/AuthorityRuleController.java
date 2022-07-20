@@ -140,14 +140,14 @@ public class AuthorityRuleController {
                 }
             }
             List<Long> ids = memoryRules.stream().map(AuthorityRuleEntity::getId).collect(Collectors.toList());
-            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
         } catch (Throwable throwable) {
             logger.error("Failed to add authority rule", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+        if (!publishRules(entity.getApp())) {
             logger.info("Publish authority rules failed after rule add");
         }
         return Result.ofSuccess(entity);
@@ -177,7 +177,7 @@ public class AuthorityRuleController {
             logger.error("Failed to save authority rule", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+        if (!publishRules(entity.getApp())) {
             logger.info("Publish authority rules failed after rule update");
         }
         return Result.ofSuccess(entity);
@@ -198,15 +198,14 @@ public class AuthorityRuleController {
         } catch (Exception e) {
             return Result.ofFail(-1, e.getMessage());
         }
-        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+        if (!publishRules(oldEntity.getApp())) {
             logger.error("Publish authority rules failed after rule delete");
         }
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<AuthorityRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        //return sentinelApiClient.setAuthorityRuleOfMachine(app, ip, port, rules);
+    private boolean publishRules(String app) {
+        List<AuthorityRuleEntity> rules = repository.findAllByApp(app);
         try {
             rulePublisher.publish(app,rules);
             return true;

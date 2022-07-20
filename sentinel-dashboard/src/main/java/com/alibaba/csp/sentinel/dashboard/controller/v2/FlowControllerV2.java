@@ -162,7 +162,7 @@ public class FlowControllerV2 {
                 }
             }
             List<Long> ids = memoryRules.stream().map(FlowRuleEntity::getId).collect(Collectors.toList());
-            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
             publishRules(entity.getApp());

@@ -107,19 +107,6 @@ public class GatewayFlowRuleController {
 
         GatewayFlowRuleEntity entity = new GatewayFlowRuleEntity();
         entity.setApp(app.trim());
-
-        String ip = reqVo.getIp();
-        if (StringUtil.isBlank(ip)) {
-            return Result.ofFail(-1, "ip can't be null or empty");
-        }
-        entity.setIp(ip.trim());
-
-        Integer port = reqVo.getPort();
-        if (port == null) {
-            return Result.ofFail(-1, "port can't be null");
-        }
-        entity.setPort(port);
-
         // API类型, Route ID或API分组
         Integer resourceMode = reqVo.getResourceMode();
         if (resourceMode == null) {
@@ -256,7 +243,7 @@ public class GatewayFlowRuleController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishRules(app, ip, port)) {
+        if (!publishRules(app)) {
             logger.warn("publish gateway flow rules fail after add");
         }
 
@@ -402,7 +389,7 @@ public class GatewayFlowRuleController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishRules(app, entity.getIp(), entity.getPort())) {
+        if (!publishRules(app)) {
             logger.warn("publish gateway flow rules fail after update");
         }
 
@@ -430,16 +417,15 @@ public class GatewayFlowRuleController {
             return Result.ofThrowable(-1, throwable);
         }
 
-        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+        if (!publishRules(oldEntity.getApp())) {
             logger.warn("publish gateway flow rules fail after delete");
         }
 
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<GatewayFlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        //return sentinelApiClient.modifyGatewayFlowRules(app, ip, port, rules);
+    private boolean publishRules(String app) {
+        List<GatewayFlowRuleEntity> rules = repository.findAllByApp(app);
         try {
             rulePublisher.publish(app,rules);
             return true;

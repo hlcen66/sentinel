@@ -118,14 +118,14 @@ public class DegradeController {
                 }
             }
             List<Long> ids = memoryRules.stream().map(DegradeRuleEntity::getId).collect(Collectors.toList());
-            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
         } catch (Throwable t) {
             logger.error("Failed to add new degrade rule, app={}, ip={}", entity.getApp(), entity.getIp(), t);
             return Result.ofThrowable(-1, t);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+        if (!publishRules(entity.getApp())) {
             logger.warn("Publish degrade rules failed, app={}", entity.getApp());
         }
         return Result.ofSuccess(entity);
@@ -159,7 +159,7 @@ public class DegradeController {
             logger.error("Failed to save degrade rule, id={}, rule={}", id, entity, t);
             return Result.ofThrowable(-1, t);
         }
-        if (!publishRules(entity.getApp(), entity.getIp(), entity.getPort())) {
+        if (!publishRules(entity.getApp())) {
             logger.warn("Publish degrade rules failed, app={}", entity.getApp());
         }
         return Result.ofSuccess(entity);
@@ -183,15 +183,14 @@ public class DegradeController {
             logger.error("Failed to delete degrade rule, id={}", id, throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())) {
+        if (!publishRules(oldEntity.getApp())) {
             logger.warn("Publish degrade rules failed, app={}", oldEntity.getApp());
         }
         return Result.ofSuccess(id);
     }
 
-    private boolean publishRules(String app, String ip, Integer port) {
-        List<DegradeRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
-        //return sentinelApiClient.setDegradeRuleOfMachine(app, ip, port, rules);
+    private boolean publishRules(String app) {
+        List<DegradeRuleEntity> rules = repository.findAllByApp(app);
         try {
             rulePublisher.publish(app,rules);
             return true;
