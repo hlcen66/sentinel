@@ -83,10 +83,12 @@ public class GatewayApiController {
         }
 
         try {
-            //List<ApiDefinitionEntity> apis = sentinelApiClient.fetchApis(app, ip, port).get();
-            List<ApiDefinitionEntity> apis = ruleProvider.getRules(app);
-            repository.saveAll(apis);
-            return Result.ofSuccess(apis);
+            List<ApiDefinitionEntity> memoryRules = repository.findAllByApp(app);
+            if(CollectionUtils.isEmpty(memoryRules)){
+                memoryRules = ruleProvider.getRules(app);
+            }
+            repository.saveAll(memoryRules);
+            return Result.ofSuccess(memoryRules);
         } catch (Throwable throwable) {
             logger.error("queryApis error:", throwable);
             return Result.ofThrowable(-1, throwable);
@@ -158,7 +160,8 @@ public class GatewayApiController {
         }
 
         if (!publishApis(app)) {
-            logger.warn("publish gateway apis fail after add");
+            logger.error("gateway api rules add fail");
+            return Result.ofFail(-1,"gateway api rules add fail");
         }
 
         return Result.ofSuccess(entity);
@@ -221,7 +224,8 @@ public class GatewayApiController {
         }
 
         if (!publishApis(app)) {
-            logger.warn("publish gateway apis fail after update");
+            logger.error("gateway api rules update fail");
+            return Result.ofFail(-1,"gateway api rules update fail");
         }
 
         return Result.ofSuccess(entity);
@@ -248,7 +252,8 @@ public class GatewayApiController {
         }
 
         if (!publishApis(oldEntity.getApp())) {
-            logger.warn("publish gateway apis fail after delete");
+            logger.error("gateway api rules delete fail");
+            return Result.ofFail(-1,"gateway api rules delete fail");
         }
 
         return Result.ofSuccess(id);
@@ -261,7 +266,7 @@ public class GatewayApiController {
             rulePublisher.publish(app,apis);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("gateway api rules push error", e);
             return false;
         }
     }

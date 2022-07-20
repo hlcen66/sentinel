@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.SystemRuleEntity;
 import com.alibaba.csp.sentinel.util.StringUtil;
 
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
@@ -78,17 +79,20 @@ public class FlowControllerV2 {
             return Result.ofFail(-1, "app can't be null or empty");
         }
         try {
-            List<FlowRuleEntity> rules = ruleProvider.getRules(app);
-            if (rules != null && !rules.isEmpty()) {
-                for (FlowRuleEntity entity : rules) {
+            List<FlowRuleEntity> memoryRules = repository.findAllByApp(app);
+            if(CollectionUtils.isEmpty(memoryRules)){
+                memoryRules = ruleProvider.getRules(app);
+            }
+            if (memoryRules != null && !memoryRules.isEmpty()) {
+                for (FlowRuleEntity entity : memoryRules) {
                     entity.setApp(app);
                     if (entity.getClusterConfig() != null && entity.getClusterConfig().getFlowId() != null) {
                         entity.setId(entity.getClusterConfig().getFlowId());
                     }
                 }
             }
-            rules = repository.saveAll(rules);
-            return Result.ofSuccess(rules);
+            memoryRules = repository.saveAll(memoryRules);
+            return Result.ofSuccess(memoryRules);
         } catch (Throwable throwable) {
             logger.error("Error when querying flow rules", throwable);
             return Result.ofThrowable(-1, throwable);
@@ -229,6 +233,7 @@ public class FlowControllerV2 {
             repository.delete(id);
             publishRules(oldEntity.getApp());
         } catch (Exception e) {
+            logger.error("flow rules delete fail", e);
             return Result.ofFail(-1, e.getMessage());
         }
         return Result.ofSuccess(id);
@@ -237,6 +242,5 @@ public class FlowControllerV2 {
     private void publishRules(/*@NonNull*/ String app) throws Exception {
         List<FlowRuleEntity> rules = repository.findAllByApp(app);
         rulePublisher.publish(app, rules);
-        TimeUnit.MILLISECONDS.sleep(500);
     }
 }

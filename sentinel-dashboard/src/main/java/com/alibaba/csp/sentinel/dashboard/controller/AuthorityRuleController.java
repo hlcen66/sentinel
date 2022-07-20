@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.SystemRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
 import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
@@ -86,11 +87,12 @@ public class AuthorityRuleController {
             return Result.ofFail(-1, "Invalid parameter: port");
         }
         try {
-            /*List<AuthorityRuleEntity> rules = sentinelApiClient.fetchAuthorityRulesOfMachine(app, ip, port);
-            rules = repository.saveAll(rules);*/
-            List<AuthorityRuleEntity> rules = ruleProvider.getRules(app);
-            repository.saveAll(rules);
-            return Result.ofSuccess(rules);
+            List<AuthorityRuleEntity> memoryRules = repository.findAllByApp(app);
+            if(CollectionUtils.isEmpty(memoryRules)){
+                memoryRules = ruleProvider.getRules(app);
+            }
+            repository.saveAll(memoryRules);
+            return Result.ofSuccess(memoryRules);
         } catch (Throwable throwable) {
             logger.error("Error when querying authority rules", throwable);
             return Result.ofFail(-1, throwable.getMessage());
@@ -148,7 +150,8 @@ public class AuthorityRuleController {
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(entity.getApp())) {
-            logger.info("Publish authority rules failed after rule add");
+            logger.error("auth rules add fail");
+            Result.ofFail(-1,"auth rules add fail");
         }
         return Result.ofSuccess(entity);
     }
@@ -178,7 +181,8 @@ public class AuthorityRuleController {
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(entity.getApp())) {
-            logger.info("Publish authority rules failed after rule update");
+            logger.error("auth rules update fail");
+            Result.ofFail(-1,"auth rules update fail");
         }
         return Result.ofSuccess(entity);
     }
@@ -199,7 +203,8 @@ public class AuthorityRuleController {
             return Result.ofFail(-1, e.getMessage());
         }
         if (!publishRules(oldEntity.getApp())) {
-            logger.error("Publish authority rules failed after rule delete");
+            logger.error("auth rules delete fail");
+            Result.ofFail(-1,"auth rules delete fail");
         }
         return Result.ofSuccess(id);
     }
@@ -210,6 +215,7 @@ public class AuthorityRuleController {
             rulePublisher.publish(app,rules);
             return true;
         } catch (Exception e) {
+            logger.error("auth rules push error", e);
             return false;
         }
     }

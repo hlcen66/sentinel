@@ -35,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Arrays;
@@ -86,10 +87,12 @@ public class GatewayFlowRuleController {
         }
 
         try {
-            //List<GatewayFlowRuleEntity> rules = sentinelApiClient.fetchGatewayFlowRules(app, ip, port).get();
-            List<GatewayFlowRuleEntity> rules = ruleProvider.getRules(app);
-            repository.saveAll(rules);
-            return Result.ofSuccess(rules);
+            List<GatewayFlowRuleEntity> memoryRules = repository.findAllByApp(app);
+            if(CollectionUtils.isEmpty(memoryRules)){
+                memoryRules = ruleProvider.getRules(app);
+            }
+            repository.saveAll(memoryRules);
+            return Result.ofSuccess(memoryRules);
         } catch (Throwable throwable) {
             logger.error("query gateway flow rules error:", throwable);
             return Result.ofThrowable(-1, throwable);
@@ -244,7 +247,8 @@ public class GatewayFlowRuleController {
         }
 
         if (!publishRules(app)) {
-            logger.warn("publish gateway flow rules fail after add");
+            logger.error("gateway flow rules add fail");
+            return Result.ofFail(-1,"gateway flow rules add fail");
         }
 
         return Result.ofSuccess(entity);
@@ -390,7 +394,8 @@ public class GatewayFlowRuleController {
         }
 
         if (!publishRules(app)) {
-            logger.warn("publish gateway flow rules fail after update");
+            logger.error("gateway flow rules update fail");
+            return Result.ofFail(-1,"gateway flow rules update fail");
         }
 
         return Result.ofSuccess(entity);
@@ -418,7 +423,8 @@ public class GatewayFlowRuleController {
         }
 
         if (!publishRules(oldEntity.getApp())) {
-            logger.warn("publish gateway flow rules fail after delete");
+            logger.error("gateway flow rules delete fail");
+            return Result.ofFail(-1,"gateway flow rules delete fail");
         }
 
         return Result.ofSuccess(id);
@@ -430,7 +436,7 @@ public class GatewayFlowRuleController {
             rulePublisher.publish(app,rules);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("gateway flow push error", e);
             return false;
         }
     }

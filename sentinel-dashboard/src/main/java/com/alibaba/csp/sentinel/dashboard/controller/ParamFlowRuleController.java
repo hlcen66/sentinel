@@ -112,9 +112,12 @@ public class ParamFlowRuleController {
             return unsupportedVersion();
         }
         try {
-            List<ParamFlowRuleEntity> rules = ruleProvider.getRules(app);
-            repository.saveAll(rules);
-            return Result.ofSuccess(rules);
+            List<ParamFlowRuleEntity> memoryRules = repository.findAllByApp(app);
+            if(CollectionUtils.isEmpty(memoryRules)){
+                memoryRules = ruleProvider.getRules(app);
+            }
+            repository.saveAll(memoryRules);
+            return Result.ofSuccess(memoryRules);
         } catch (ExecutionException ex) {
             logger.error("Error when querying parameter flow rules", ex.getCause());
             if (isNotSupported(ex.getCause())) {
@@ -159,7 +162,10 @@ public class ParamFlowRuleController {
             Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
             entity.setId(nextId);
             entity = repository.save(entity);
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort());
+            if(!publishRules(entity.getApp(), entity.getIp(), entity.getPort())){
+                logger.error("para rules add fail");
+                return Result.ofFail(-1,"param rules add fail");
+            }
             return Result.ofSuccess(entity);
         } catch (Exception ex) {
             logger.error("Error when adding new parameter flow rules", ex.getCause());
@@ -236,8 +242,10 @@ public class ParamFlowRuleController {
         entity.setGmtModified(date);
         try {
             entity = repository.save(entity);
-            //publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get();
-            publishRules(entity.getApp(), entity.getIp(), entity.getPort());
+            if(!publishRules(entity.getApp(), entity.getIp(), entity.getPort())){
+                logger.error("para rules update fail");
+                return Result.ofFail(-1,"param rules update fail");
+            }
             return Result.ofSuccess(entity);
         } catch (Exception ex) {
             logger.error("Error when updating parameter flow rules, id=" + id, ex.getCause());
@@ -265,7 +273,10 @@ public class ParamFlowRuleController {
 
         try {
             repository.delete(id);
-            publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort());
+            if(!publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort())){
+                logger.error("para rules delete fail");
+                return Result.ofFail(-1,"param rules delete fail");
+            }
             return Result.ofSuccess(id);
         } catch (Exception ex) {
             logger.error("Error when deleting parameter flow rules", ex.getCause());
@@ -285,12 +296,14 @@ public class ParamFlowRuleController {
         return sentinelApiClient.setParamFlowRuleOfMachine(app, ip, port, rules);
     }*/
 
-    private void publishRules(String app, String ip, Integer port) {
+    private boolean publishRules(String app, String ip, Integer port) {
         List<ParamFlowRuleEntity> rules = repository.findAllByApp(app);
         try {
             rulePublisher.publish(app, rules);
+            return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("param rules push error", e);
+            return false;
         }
     }
 

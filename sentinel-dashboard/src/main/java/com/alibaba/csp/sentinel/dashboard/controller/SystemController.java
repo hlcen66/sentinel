@@ -90,13 +90,8 @@ public class SystemController {
         }
         try {
             List<SystemRuleEntity> memoryRules = repository.findAllByApp(app);
-            List<SystemRuleEntity> nacosRules = ruleProvider.getRules(app);
             if(CollectionUtils.isEmpty(memoryRules)){
-                memoryRules = nacosRules;
-            }else{
-                if (memoryRules.size()< nacosRules.size()){
-                    memoryRules = nacosRules;
-                }
+                memoryRules = ruleProvider.getRules(app);
             }
             repository.saveAll(memoryRules);
             return Result.ofSuccess(memoryRules);
@@ -188,6 +183,7 @@ public class SystemController {
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(app)) {
+            logger.error("system rules add fail");
             Result.ofFail(-1,"保存规则失败");
         }
         return Result.ofSuccess(entity);
@@ -250,7 +246,8 @@ public class SystemController {
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(app)) {
-            Result.ofFail(-1,"保存规则失败");
+            logger.error("system rules upadte fail");
+            Result.ofFail(-1,"更新规则失败");
         }
         return Result.ofSuccess(entity);
     }
@@ -272,7 +269,8 @@ public class SystemController {
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(oldEntity.getApp())) {
-            Result.ofFail(-1,"保存规则失败");
+            logger.error("system rules delete fail");
+            Result.ofFail(-1,"更新规则失败");
         }
         return Result.ofSuccess(id);
     }

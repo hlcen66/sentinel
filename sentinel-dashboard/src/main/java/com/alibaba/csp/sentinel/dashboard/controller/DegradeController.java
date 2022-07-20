@@ -23,6 +23,7 @@ import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.AuthorityRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.SystemRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
 import com.alibaba.csp.sentinel.dashboard.repository.rule.RuleRepository;
@@ -87,11 +88,12 @@ public class DegradeController {
             return Result.ofFail(-1, "port can't be null");
         }
         try {
-            /*List<DegradeRuleEntity> rules = sentinelApiClient.fetchDegradeRuleOfMachine(app, ip, port);
-            rules = repository.saveAll(rules);*/
-            List<DegradeRuleEntity> rules = ruleProvider.getRules(app);
-            repository.saveAll(rules);
-            return Result.ofSuccess(rules);
+            List<DegradeRuleEntity> memoryRules = repository.findAllByApp(app);
+            if(CollectionUtils.isEmpty(memoryRules)){
+                memoryRules = ruleProvider.getRules(app);
+            }
+            repository.saveAll(memoryRules);
+            return Result.ofSuccess(memoryRules);
         } catch (Throwable throwable) {
             logger.error("queryApps error:", throwable);
             return Result.ofThrowable(-1, throwable);
@@ -126,7 +128,8 @@ public class DegradeController {
             return Result.ofThrowable(-1, t);
         }
         if (!publishRules(entity.getApp())) {
-            logger.warn("Publish degrade rules failed, app={}", entity.getApp());
+            logger.error("degrade rules add fail");
+            return Result.ofFail(-1,"degrade save fail");
         }
         return Result.ofSuccess(entity);
     }
@@ -160,7 +163,8 @@ public class DegradeController {
             return Result.ofThrowable(-1, t);
         }
         if (!publishRules(entity.getApp())) {
-            logger.warn("Publish degrade rules failed, app={}", entity.getApp());
+            logger.error("degrade rules update fail");
+            return Result.ofFail(-1,"degrade update fail");
         }
         return Result.ofSuccess(entity);
     }
@@ -184,7 +188,8 @@ public class DegradeController {
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(oldEntity.getApp())) {
-            logger.warn("Publish degrade rules failed, app={}", oldEntity.getApp());
+            logger.error("degrade rules delete fail");
+            return Result.ofFail(-1,"degrade delete fail");
         }
         return Result.ofSuccess(id);
     }
@@ -195,6 +200,7 @@ public class DegradeController {
             rulePublisher.publish(app,rules);
             return true;
         } catch (Exception e) {
+            logger.error("degrade push fail", e);
             return false;
         }
     }
