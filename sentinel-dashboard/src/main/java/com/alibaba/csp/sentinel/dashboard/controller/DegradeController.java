@@ -17,10 +17,12 @@ package com.alibaba.csp.sentinel.dashboard.controller;
 
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.AuthorityRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
 import com.alibaba.csp.sentinel.dashboard.repository.rule.RuleRepository;
@@ -37,6 +39,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -106,6 +109,17 @@ public class DegradeController {
         entity.setGmtCreate(date);
         entity.setGmtModified(date);
         try {
+            List<DegradeRuleEntity> memoryRules = repository.findAllByApp(entity.getApp());
+            if(CollectionUtils.isEmpty(memoryRules)){
+                List<DegradeRuleEntity> rules = ruleProvider.getRules(entity.getApp());
+                if(!CollectionUtils.isEmpty(rules)){
+                    //初始化内存
+                    memoryRules = repository.saveAll(rules);
+                }
+            }
+            List<Long> ids = memoryRules.stream().map(DegradeRuleEntity::getId).collect(Collectors.toList());
+            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            entity.setId(nextId);
             entity = repository.save(entity);
         } catch (Throwable t) {
             logger.error("Failed to add new degrade rule, app={}, ip={}", entity.getApp(), entity.getIp(), t);

@@ -20,11 +20,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.client.CommandNotFoundException;
 import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.DegradeRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.discovery.AppManagement;
 import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService;
@@ -43,6 +45,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -143,12 +146,22 @@ public class ParamFlowRuleController {
         if (!checkIfSupported(entity.getApp(), entity.getIp(), entity.getPort())) {
             return unsupportedVersion();
         }
-        entity.setId(null);
         entity.getRule().setResource(entity.getResource().trim());
         Date date = new Date();
         entity.setGmtCreate(date);
         entity.setGmtModified(date);
         try {
+            List<ParamFlowRuleEntity> memoryRules = repository.findAllByApp(entity.getApp());
+            if(CollectionUtils.isEmpty(memoryRules)){
+                List<ParamFlowRuleEntity> rules = ruleProvider.getRules(entity.getApp());
+                if(!CollectionUtils.isEmpty(rules)){
+                    //初始化内存
+                    memoryRules = repository.saveAll(rules);
+                }
+            }
+            List<Long> ids = memoryRules.stream().map(ParamFlowRuleEntity::getId).collect(Collectors.toList());
+            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            entity.setId(nextId);
             entity = repository.save(entity);
             //publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get();
             publishRules(entity.getApp(), entity.getIp(), entity.getPort());

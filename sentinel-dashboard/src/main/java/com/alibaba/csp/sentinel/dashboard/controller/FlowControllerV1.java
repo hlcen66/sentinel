@@ -154,28 +154,23 @@ public class FlowControllerV1 {
         if (checkResult != null) {
             return checkResult;
         }
-        //查询已有规则，取出最大ID
-        try {
-            List<FlowRuleEntity> rules = ruleProvider.getRules(entity.getApp());
-            if(CollectionUtils.isEmpty(rules)){
-                entity.setId(null);
-            }else{
-                List<Long> ids = rules.stream().map(FlowRuleEntity::getId).collect(Collectors.toList());
-                Long id = ids.stream().max(Long::compare).get();
-                AtomicLong maxId = new AtomicLong(id);
-                Long nextId = maxId.addAndGet(1);
-                entity.setId(nextId);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
         Date date = new Date();
         entity.setGmtCreate(date);
         entity.setGmtModified(date);
         entity.setLimitApp(entity.getLimitApp().trim());
         entity.setResource(entity.getResource().trim());
         try {
+            List<FlowRuleEntity> memoryRules = repository.findAllByApp(entity.getApp());
+            if(CollectionUtils.isEmpty(memoryRules)){
+                List<FlowRuleEntity> rules = ruleProvider.getRules(entity.getApp());
+                if(!CollectionUtils.isEmpty(rules)){
+                    //初始化内存
+                    memoryRules = repository.saveAll(rules);
+                }
+            }
+            List<Long> ids = memoryRules.stream().map(FlowRuleEntity::getId).collect(Collectors.toList());
+            Long nextId = ids.stream().max(Long::compare).get() + 1;
+            entity.setId(nextId);
             entity = repository.save(entity);
             publishRules(entity.getApp(), entity.getIp(), entity.getPort());
             return Result.ofSuccess(entity);
