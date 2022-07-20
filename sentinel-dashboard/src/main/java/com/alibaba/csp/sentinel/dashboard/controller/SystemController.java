@@ -17,9 +17,11 @@ package com.alibaba.csp.sentinel.dashboard.controller;
 
 import java.util.Date;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
 import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.ParamFlowRuleEntity;
 import com.alibaba.csp.sentinel.dashboard.repository.rule.RuleRepository;
 import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
@@ -35,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -86,10 +89,17 @@ public class SystemController {
             return checkResult;
         }
         try {
-            //List<SystemRuleEntity> rules = sentinelApiClient.fetchSystemRuleOfMachine(app, ip, port);
-            List<SystemRuleEntity> rules = ruleProvider.getRules(app);
-            repository.saveAll(rules);
-            return Result.ofSuccess(rules);
+            List<SystemRuleEntity> memoryRules = repository.findAllByApp(app);
+            List<SystemRuleEntity> nacosRules = ruleProvider.getRules(app);
+            if(CollectionUtils.isEmpty(memoryRules)){
+                memoryRules = nacosRules;
+            }else{
+                if (memoryRules.size()< nacosRules.size()){
+                    memoryRules = nacosRules;
+                }
+            }
+            repository.saveAll(memoryRules);
+            return Result.ofSuccess(memoryRules);
         } catch (Throwable throwable) {
             logger.error("Query machine system rules error", throwable);
             return Result.ofThrowable(-1, throwable);
@@ -161,13 +171,24 @@ public class SystemController {
         entity.setGmtCreate(date);
         entity.setGmtModified(date);
         try {
+            List<SystemRuleEntity> memoryRules = repository.findAllByApp(entity.getApp());
+            if(CollectionUtils.isEmpty(memoryRules)){
+                List<SystemRuleEntity> rules = ruleProvider.getRules(entity.getApp());
+                if(!CollectionUtils.isEmpty(rules)){
+                    //初始化内存
+                    memoryRules = repository.saveAll(rules);
+                }
+            }
+            List<Long> ids = memoryRules.stream().map(SystemRuleEntity::getId).collect(Collectors.toList());
+            Long nextId = CollectionUtils.isEmpty(ids)? 0: ids.stream().max(Long::compare).get() + 1;
+            entity.setId(nextId);
             entity = repository.save(entity);
         } catch (Throwable throwable) {
             logger.error("Add SystemRule error", throwable);
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(app)) {
-            logger.warn("Publish system rules fail after rule add");
+            Result.ofFail(-1,"保存规则失败");
         }
         return Result.ofSuccess(entity);
     }
@@ -228,8 +249,8 @@ public class SystemController {
             logger.error("save error:", throwable);
             return Result.ofThrowable(-1, throwable);
         }
-        if (!publishRules(entity.getApp())) {
-            logger.info("publish system rules fail after rule update");
+        if (!publishRules(app)) {
+            Result.ofFail(-1,"保存规则失败");
         }
         return Result.ofSuccess(entity);
     }
@@ -251,7 +272,7 @@ public class SystemController {
             return Result.ofThrowable(-1, throwable);
         }
         if (!publishRules(oldEntity.getApp())) {
-            logger.info("publish system rules fail after rule delete");
+            Result.ofFail(-1,"保存规则失败");
         }
         return Result.ofSuccess(id);
     }
@@ -263,7 +284,7 @@ public class SystemController {
             rulePublisher.publish(app,rules);
             return true;
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("system rules save error",e);
             return false;
         }
     }
