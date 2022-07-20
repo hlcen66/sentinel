@@ -41,8 +41,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 import static com.alibaba.csp.sentinel.adapter.gateway.common.SentinelGatewayConstants.*;
 
@@ -72,7 +71,7 @@ public class GatewayApiController {
     @Qualifier("gatewayApiPublisher")
     private DynamicRulePublisher<List<ApiDefinitionEntity>> rulePublisher;
 
-    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
+    private static ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS,new ArrayBlockingQueue(10));
 
     @GetMapping("/list.json")
     @AuthAction(AuthService.PrivilegeType.READ_RULE)

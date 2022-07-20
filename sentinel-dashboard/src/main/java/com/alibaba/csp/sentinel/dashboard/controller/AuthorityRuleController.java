@@ -17,8 +17,7 @@ package com.alibaba.csp.sentinel.dashboard.controller;
 
 import java.util.Date;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
@@ -74,7 +73,7 @@ public class AuthorityRuleController {
     @Qualifier("authPublisher")
     private DynamicRulePublisher<List<AuthorityRuleEntity>> rulePublisher;
 
-    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
+    private static ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS,new ArrayBlockingQueue(10));
 
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)

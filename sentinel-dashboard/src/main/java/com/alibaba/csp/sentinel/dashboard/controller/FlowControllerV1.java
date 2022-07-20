@@ -73,7 +73,7 @@ public class FlowControllerV1 {
     @Qualifier("flowPublisher")
     private DynamicRulePublisher<List<FlowRuleEntity>> rulePublisher;
 
-    private static ExecutorService executorService = Executors.newFixedThreadPool(1);
+    private static ThreadPoolExecutor executorService = new ThreadPoolExecutor(1, 1, 0, TimeUnit.SECONDS,new ArrayBlockingQueue(10));
 
     @GetMapping("/rules")
     @AuthAction(PrivilegeType.READ_RULE)
